@@ -27,14 +27,7 @@
 #include "ubpf_int.h"
 #include "ebpf.h"
 
-typedef int (*WALKER)(struct ubpf_vm *vm, struct ebpf_inst inst, void *data, int inst_off, char *visited);
-
-enum ubpf_walk_action
-{
-    UBPF_WALK_CONTINUE,
-    UBPF_WALK_STOP,
-    UBPF_WALK_INVALID,
-};
+// Helpers
 
 int isjmp(struct ebpf_inst inst)
 {
@@ -43,6 +36,57 @@ int isjmp(struct ebpf_inst inst)
     }
     return false;
 }
+
+int uses_src(struct ebpf_inst inst)
+{
+    char cls = inst.opcode & EBPF_CLS_MASK;
+    if (inst.opcode == EBPF_OP_EXIT) {
+        return true;
+    } else if ((cls == EBPF_CLS_STX) ||
+        (cls == EBPF_CLS_LDX)) {
+        return true;
+    } else if (((cls == EBPF_CLS_ALU) ||
+         (cls == EBPF_CLS_ALU64) ||
+         (cls == EBPF_CLS_JMP)) &&
+         (inst.opcode & EBPF_SRC_REG)) {
+        // Non-trivial exceptions
+        if ((inst.opcode == EBPF_OP_NEG) ||
+            (inst.opcode == EBPF_OP_NEG64) ||
+            (inst.opcode == EBPF_OP_LE) ||
+            (inst.opcode == EBPF_OP_BE) ||
+            (inst.opcode == EBPF_OP_LDDW) ||
+            (inst.opcode == EBPF_OP_JA) ||
+            (inst.opcode == EBPF_OP_CALL)) {
+            return false;
+        } else {
+            return true;
+        }
+    } else {
+        return false;
+    }
+}
+
+int sets_dst(struct ebpf_inst inst)
+{
+    char cls = inst.opcode & EBPF_CLS_MASK;
+    if ((cls == EBPF_CLS_ST) ||
+        (cls == EBPF_CLS_STX) ||
+        (cls == EBPF_CLS_JMP)) {
+        return false;
+    }
+    return true;
+}
+
+// Instruction Walker
+
+typedef int (*WALKER)(struct ubpf_vm *vm, struct ebpf_inst inst, void *data, int inst_off, char *visited);
+
+enum ubpf_walk_action
+{
+    UBPF_WALK_CONTINUE,
+    UBPF_WALK_STOP,
+    UBPF_WALK_INVALID,
+};
 
 int
 ubpf_walk_paths(struct ubpf_vm *vm, WALKER walk_fn, void *data, int inst_off, char *visited)
@@ -83,6 +127,8 @@ ubpf_walk_start(struct ubpf_vm *vm, WALKER walk_fn, void *data)
     memset((void *)visited, 0, vm->num_insts);
     return ubpf_walk_paths(vm, walk_fn, data, 0, visited);
 }
+
+// Verifier Passes
 
 int
 _walker_no_dead_insts(struct ubpf_vm *vm, struct ebpf_inst inst, void *data, int inst_off, char *visited)
@@ -125,11 +171,42 @@ ubpf_verify_no_loops(struct ubpf_vm *vm)
 }
 
 int
+_walker_no_uninit_regs(struct ubpf_vm *vm, struct ebpf_inst inst, void *data, int inst_off, char *visited)
+{
+    char *reg_init = (void *)data;
+    if (((inst.opcode == EBPF_OP_XOR_REG) ||
+         (inst.opcode == EBPF_OP_XOR64_REG)) &&
+        (inst.dst == inst.src)) {
+        // Special case `xor r0, r0`
+        reg_init[inst.dst] = 1;
+    } else if (uses_src(inst) && (reg_init[inst.src] == 0)) {
+        fprintf(stderr, "Uninitialized register r%d accessed at offset %d\n", inst.src, inst_off);
+        return UBPF_WALK_STOP;
+    } else if (sets_dst(inst)) {
+        reg_init[inst.dst] = 1;
+    }
+    if (inst.opcode == EBPF_OP_CALL)
+        reg_init[0] = 1;
+    return UBPF_WALK_CONTINUE;
+}
+
+int
+ubpf_verify_no_uninit_regs(struct ubpf_vm *vm)
+{
+    char reg_init[16] = {0};
+    reg_init[1] = 1;
+    reg_init[10] = 1;
+    return ubpf_walk_start(vm, _walker_no_uninit_regs, (void *)reg_init);
+}
+
+int
 ubpf_verify(struct ubpf_vm *vm)
 {
     if (ubpf_verify_no_loops(vm))
         return 1;
     if (ubpf_verify_no_dead_insts(vm))
+        return 1;
+    if (ubpf_verify_no_uninit_regs(vm))
         return 1;
     return 0;
 }
