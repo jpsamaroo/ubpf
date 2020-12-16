@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-CFLAGS := -Wall -Werror -Iinc -O2 -g -Wunused-parameter -fPIC
+CFLAGS := -Wall -Werror -Iinc -O2 -g -Wunused-parameter -std=c99 -fPIC
 LDLIBS := -lm
 
 INSTALL ?= install
@@ -34,7 +34,7 @@ all: libubpf.a libubpf.so test
 ubpf_jit_x86_64.o: ubpf_jit_x86_64.c ubpf_jit_x86_64.h
 
 ubpf_verifier.o: ubpf_verifier.c
-	$(CC) -Wall -Werror -Iinc -O2 -g -fPIC -c -o ubpf_verifier.o ubpf_verifier.c
+	$(CC) -Wall -Werror -Iinc -O2 -g -std=c99 -fPIC -c -o ubpf_verifier.o ubpf_verifier.c
 
 libubpf.a: ubpf_vm.o ubpf_jit_x86_64.o ubpf_loader.o ubpf_verifier.o
 	ar rc $@ $^

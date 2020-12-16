@@ -229,7 +229,7 @@ static void
 trash_registers(void)
 {
     /* Overwrite all caller-save registers */
-    asm(
+    __asm__(
         "mov $0xf0, %rax;"
         "mov $0xf1, %rcx;"
         "mov $0xf2, %rdx;"
