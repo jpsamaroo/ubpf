@@ -229,7 +229,15 @@ static void
 trash_registers(void)
 {
     /* Overwrite all caller-save registers */
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__)
+    __asm__(
+        "mov $0xf0, %ax;"
+        "mov $0xf1, %cx;"
+        "mov $0xf2, %dx;"
+        "mov $0xf3, %si;"
+        "mov $0xf4, %di;"
+    );
+#elif defined(__x86_64__)
     __asm__(
         "mov $0xf0, %rax;"
         "mov $0xf1, %rcx;"
