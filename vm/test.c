@@ -229,6 +229,7 @@ static void
 trash_registers(void)
 {
     /* Overwrite all caller-save registers */
+#if defined(__i386__) || defined(__x86_64__)
     __asm__(
         "mov $0xf0, %rax;"
         "mov $0xf1, %rcx;"
@@ -240,6 +241,8 @@ trash_registers(void)
         "mov $0xf7, %r10;"
         "mov $0xf8, %r11;"
     );
+#endif
+// TODO: Add impl. for other architectures
 }
 
 static uint32_t
