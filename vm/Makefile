@@ -47,6 +47,7 @@ test: test.o libubpf.a
 install:
 	$(INSTALL) -d $(DESTDIR)$(PREFIX)/lib
 	$(INSTALL) -m 644 libubpf.a $(DESTDIR)$(PREFIX)/lib
+	$(INSTALL) -m 644 libubpf.so $(DESTDIR)$(PREFIX)/lib
 	$(INSTALL) -d $(DESTDIR)$(PREFIX)/include
 	$(INSTALL) -m 644 inc/ubpf.h $(DESTDIR)$(PREFIX)/include
 
