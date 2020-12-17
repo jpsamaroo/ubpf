@@ -129,14 +129,15 @@ ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errms
     for (i = 0; i < ehdr->e_shnum; i++) {
         const Elf64_Shdr *shdr = sections[i].shdr;
         if (shdr->sh_type == SHT_PROGBITS &&
-                shdr->sh_flags == (SHF_ALLOC|SHF_EXECINSTR)) {
+                shdr->sh_flags == (SHF_ALLOC|SHF_EXECINSTR) &&
+                ((&sections[i])->size > 0)) {
             text_shndx = i;
             break;
         }
     }
 
     if (!text_shndx) {
-        *errmsg = ubpf_error("text section not found");
+        *errmsg = ubpf_error("non-empty text section not found");
         goto error;
     }
 
