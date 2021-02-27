@@ -131,31 +131,7 @@ ubpf_walk_start(struct ubpf_vm *vm, WALKER walk_fn, void *data)
 // Verifier Passes
 
 int
-_walker_no_dead_insts(struct ubpf_vm *vm, struct ebpf_inst inst, void *data, int inst_off, char *visited)
-{
-    return UBPF_WALK_CONTINUE;
-}
-
-int
-ubpf_verify_no_dead_insts(struct ubpf_vm *vm)
-{
-    char visited[vm->num_insts];
-    memset((void *)visited, 0, vm->num_insts);
-    int ret = ubpf_walk_paths(vm, _walker_no_dead_insts, NULL, 0, visited);
-    if (ret)
-        return ret;
-    int any_dead = 0;
-    for (int i = 0; i < vm->num_insts; i++) {
-        if (visited[i] == 0) {
-            any_dead = 1;
-            fprintf(stderr, "Dead instruction at offset %d\n", i);
-        }
-    }
-    return any_dead;
-}
-
-int
-_walker_no_loops(struct ubpf_vm *vm, struct ebpf_inst inst, void *data, int inst_off, char *visited)
+_walker_no_loops_or_dead_insts(struct ubpf_vm *vm, struct ebpf_inst inst, void *data, int inst_off, char *visited)
 {
     if (isjmp(inst) && (inst_off+1+inst.offset < inst_off) && visited[inst_off+1+inst.offset]) {
         fprintf(stderr, "Loop detected at offset %d\n", inst_off);
@@ -165,9 +141,20 @@ _walker_no_loops(struct ubpf_vm *vm, struct ebpf_inst inst, void *data, int inst
 }
 
 int
-ubpf_verify_no_loops(struct ubpf_vm *vm)
+ubpf_verify_no_loops_or_dead_insts(struct ubpf_vm *vm)
 {
-    return ubpf_walk_start(vm, _walker_no_loops, NULL);
+    char visited[vm->num_insts];
+    memset((void *)visited, 0, vm->num_insts);
+    // Populate visited and check for loops
+    int ret = ubpf_walk_paths(vm, _walker_no_loops_or_dead_insts, NULL, 0, visited);
+    int any_dead = 0;
+    for (int i = 0; i < vm->num_insts; i++) {
+        if (visited[i] == 0) {
+            any_dead = 1;
+            fprintf(stderr, "Dead instruction at offset %d\n", i);
+        }
+    }
+    return ret | any_dead;
 }
 
 int
@@ -202,9 +189,7 @@ ubpf_verify_no_uninit_regs(struct ubpf_vm *vm)
 int
 ubpf_verify(struct ubpf_vm *vm)
 {
-    if (ubpf_verify_no_loops(vm))
-        return 1;
-    if (ubpf_verify_no_dead_insts(vm))
+    if (ubpf_verify_no_loops_or_dead_insts(vm))
         return 1;
     if (ubpf_verify_no_uninit_regs(vm))
         return 1;
