@@ -36,7 +36,7 @@ def check_datafile(filename):
         memfile.flush()
         cmd.extend(['-m', memfile.name])
 
-    cmd.extend(['-V', '-'])
+    cmd.extend(['-v', '-'])
 
     vm = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 

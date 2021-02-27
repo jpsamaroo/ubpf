@@ -34,7 +34,7 @@ static void register_functions(struct ubpf_vm *vm);
 
 static void usage(const char *name)
 {
-    fprintf(stderr, "usage: %s [-h] [-j|--jit] [-V|--verify] [-m|--mem PATH] BINARY\n", name);
+    fprintf(stderr, "usage: %s [-h] [-j|--jit] [-v|--verify] [-m|--mem PATH] BINARY\n", name);
     fprintf(stderr, "\nExecutes the eBPF code in BINARY and prints the result to stdout.\n");
     fprintf(stderr, "If --mem is given then the specified file will be read and a pointer\nto its data passed in r1.\n");
     fprintf(stderr, "If --jit is given then the JIT compiler will be used.\n");
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
         { .name = "mem", .val = 'm', .has_arg=1 },
         { .name = "jit", .val = 'j' },
         { .name = "register-offset", .val = 'r', .has_arg=1 },
-        { .name = "verify", .val = 'V' },
+        { .name = "verify", .val = 'v' },
         { }
     };
 
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
     bool verify = false;
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "hm:jr:V", longopts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hm:jr:v", longopts, NULL)) != -1) {
         switch (opt) {
         case 'm':
             mem_filename = optarg;
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
         case 'r':
             ubpf_set_register_offset(atoi(optarg));
             break;
-        case 'V':
+        case 'v':
             verify = true;
             break;
         case 'h':
