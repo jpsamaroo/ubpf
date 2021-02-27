@@ -49,8 +49,9 @@ def check_datafile(filename):
         memfile.close()
 
     if 'verifier error' in data:
-        if data['verifier error'] + '\nFailed verification' != stderr:
-            raise AssertionError("Expected error %r, got %r" % (data['verifier error'] + '\nFailed verification', stderr))
+        expected = data["verifier error"] + "\nFailed verification"
+        if expected != stderr:
+            raise AssertionError("Expected error %r, got %r" % (expected, stderr))
         if vm.returncode == 0:
             raise AssertionError("Expected VM to exit with an error code")
     elif 'error' in data or 'error-pattern' in data:
